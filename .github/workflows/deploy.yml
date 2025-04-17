@@ -1,43 +1,59 @@
-name: 🚀 Deploy Aimeos to Hostinger
+name: 🚀 Deploy Laravel Aimeos ke Hostinger
 
 on:
   push:
     branches:
-      - main  # Ganti kalau kamu pakai branch lain
+      - main  # Ganti jika kamu pakai master
 
 jobs:
-  build-and-deploy:
+  deploy:
+    name: Deploy ke Hostinger
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repo
+      - name: ⬇️ Checkout repo
         uses: actions/checkout@v3
 
-      - name: 🧰 Setup PHP & Composer
+      - name: 🧰 Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.1
+          extensions: mbstring, xml, bcmath, ctype, fileinfo, json, openssl, pdo, tokenizer, curl
           tools: composer
-          extensions: intl, mbstring, pdo, pdo_mysql, bcmath, dom, curl, fileinfo, openssl, tokenizer, xml, zip, gd
+
+      - name: ⚡️ Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
 
       - name: 📦 Install dependencies
-        run: composer install --no-dev --optimize-autoloader
+        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 
-      - name: ⚙️ Run Aimeos setup
+      - name: 🧪 Copy & Generate Laravel App Key
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: 🛠️ Setup & Build Aimeos
         run: |
           php artisan migrate --force
-          php artisan aimeos:setup --option=setup/default/demo:1
+          php artisan aimeos:setup --option=setup/default/demo:0
           php artisan aimeos:cache
 
-      - name: 🧼 Clean before deploy
+      - name: ⚙️ Laravel optimisasi
         run: |
-          rm -rf .git .github node_modules tests .env.example
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
 
-      - name: 🚀 Upload to Hostinger FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      - name: 📤 Deploy ke Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          server-dir: ${{ secrets.FTP_TARGET }}/
+          server-dir: ${{ secrets.FTP_TARGET }}
+          local-dir: ./  # bisa diatur hanya public/ jika kamu pointing domain ke public
+
