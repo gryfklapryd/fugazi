@@ -1,0 +1,43 @@
+name: 🚀 Deploy Aimeos to Hostinger
+
+on:
+  push:
+    branches:
+      - main  # Ganti kalau kamu pakai branch lain
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🧰 Setup PHP & Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.1
+          tools: composer
+          extensions: intl, mbstring, pdo, pdo_mysql, bcmath, dom, curl, fileinfo, openssl, tokenizer, xml, zip, gd
+
+      - name: 📦 Install dependencies
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: ⚙️ Run Aimeos setup
+        run: |
+          php artisan migrate --force
+          php artisan aimeos:setup --option=setup/default/demo:1
+          php artisan aimeos:cache
+
+      - name: 🧼 Clean before deploy
+        run: |
+          rm -rf .git .github node_modules tests .env.example
+
+      - name: 🚀 Upload to Hostinger FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          server-dir: ${{ secrets.FTP_TARGET }}/

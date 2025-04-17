@@ -1,0 +1,8 @@
+node_modules/
+vendor/
+.git*
+.env
+.env.example
+tests/
+storage/logs/*
+storage/framework/cache/*
